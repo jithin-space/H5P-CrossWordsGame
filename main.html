@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+
+<head>
+    <script src="jquery.js" ></script>
+</head>
+
+<body>
+
+  <div id="output"></div>
+
+    <script>
+
+        Array.prototype.last = function() {
+        return this[this.length-1];
+        }
+
+        function clone(obj){
+            if(obj == null || typeof(obj) != 'object')
+                return obj;
+
+            var temp = new obj.constructor();
+            for(var key in obj)
+                temp[key] = clone(obj[key]);
+
+            return temp;
+        }
+        function wordGrid(rows, columns,grid) {
+
+            this.rows = rows;
+            this.columns = columns;
+            this.size = rows * columns;
+            if(grid){
+              this.grid = grid;
+            }
+            else{
+                this.grid = [];
+                for(var i=0;i<this.size;i++){
+                  this.grid[i]=-1;
+                }
+            }
+
+
+        }
+
+        wordGrid.prototype = {
+            constructor: wordGrid,
+            index: function(row_or_pos, col) {
+
+                    return this.grid[row_or_pos * this.columns + col];
+
+            },
+            at: function(pos) {
+                row = Math.floor(pos / this.columns);
+                col = pos % this.columns;
+                console.log([row, col]);
+                return [row, col];
+            },
+            set: function (row_or_pos,col,val){
+
+                  this.grid[row_or_pos * this.columns + col] = val;
+
+            }
+
+        }
+
+        // end of wordGrid section
+        //crosswordGame section
+
+        function crossWordsGame(vocabulary, rows, columns, directions) {
+            this.vocabulary = vocabulary;
+            this.rows = rows;
+            this.columns = columns;
+            this.directions = directions;
+        }
+
+        crossWordsGame.prototype = {
+
+            constructor: crossWordsGame,
+
+            generateGrid: function() {
+
+                var words = this.vocabulary.slice(); //take the copy
+                var directions = this.directions.slice() //take the copy
+
+                var grid = new wordGrid(this.rows, this.columns);
+                var positions = this.setPositions(grid.size);
+
+                var stack = [{
+                    "grid": grid,
+                    "word": words.shift(),
+                    "directions": this.shuffle(directions),
+                    "positions": this.shuffle(positions)
+                }];
+
+                while (1) {
+                    var current = stack.last();
+                    // console.log("stack element\n");
+                    // console.table(stack.last().grid.grid);
+                    if (!current) {
+                        console.log("no solution is possible");
+                        return;
+                    }
+                    var dir = current.directions.pop();
+                    // console.log("directions:"+dir);
+                    if (!dir) {
+                       //tested
+                        //if no dir left
+                        // console.log("no directions remaining//reshuffling");
+                        // current.positions.pop();
+                        // reset directions
+                        current.directions = this.shuffle(this.directions.slice()); //*
+                        dir = current.directions.pop();
+                    }
+                    // console.log(dir);
+                    pos = current.positions.pop();
+                    if (!pos) {
+                        console.log("no positions left");
+                        words.unshift(current.word);
+                        stack.pop();
+                    } else {
+                        // console.log(pos);
+                        // console.log("attempting to fit" + current.word);
+                        grid = this.tryWord(current.grid, current.word, pos, dir);
+
+                        if (grid) {
+                            if (words.length != 0) {
+                                console.log("fitted" + current.word);
+                                stack.push({
+                                    "grid": grid,
+                                    "word": words.shift(),
+                                    "directions": this.shuffle(directions),
+                                    "positions": this.shuffle(positions)
+                                });
+
+                                // console.log("after pushing");
+                                // console.table(grid.grid);
+
+
+
+                            } else {
+
+                                // console.log("success");
+                                // console.log(grid);
+                                break;
+                            }
+                        }
+                    }
+                }
+                this.grid = grid;
+                // console.table(grid.grid);
+
+                 var newArray = [];
+                 while(grid.grid.length) newArray.push(grid.grid.splice(0,10));
+
+                 console.table(newArray);
+
+                 function makeTableHTML(myArray) {
+                      var result = "<table border=1>";
+                      for(var i=0; i<myArray.length; i++) {
+                          result += "<tr>";
+                          for(var j=0; j<myArray[i].length; j++){
+                              result += "<td>"+myArray[i][j]+"</td>";
+                          }
+                          result += "</tr>";
+                      }
+                      result += "</table>";
+
+                      return result;
+                  }
+
+                document.getElementById("output").innerHTML = makeTableHTML(newArray);
+            },
+
+            setPositions: function(size) {
+                var positions = [];
+                for (var i = 0; i < size; i++) {
+                    positions[i] = i;
+                }
+                return positions;
+            },
+            shuffle: function(array) {
+                var currentIndex = array.length,
+                    tmpValue, randIndex;
+
+                while (0 !== currentIndex) {
+
+
+                    randIndex = Math.floor(Math.random() * currentIndex);
+                    currentIndex -= 1;
+                    tmpValue = array[currentIndex];
+                    array[currentIndex] = array[randIndex];
+                    array[randIndex] = tmpValue;
+
+                }
+                return array;
+            },
+
+            // start of copy
+            tryWord: function(grid, word, pos, dir) {
+
+                // console.log("current pos:\n"+pos);
+                // console.table({"grid":grid.grid,"word": word, "pos": pos,"dir":dir});
+                console.log('input grid')
+                // console.table(grid.grid);
+                // var copyGrid = jQuery.extend({}, grid);
+                copyGrid = clone(grid);
+                loc = copyGrid.at(pos);
+                row = loc[0];
+                col = loc[1];
+                dr = dir[0];
+                dc = dir[1];
+
+                letterPos = 0;
+
+                while ((row >= 0 && row < copyGrid.rows) && (col >= 0 && col < copyGrid.columns)) {
+
+                    var element = copyGrid.index(row, col);
+                    // console.log("\ncurrent row:\n"+row+"\ncurrent col:\n"+ col);
+                    // console.log(element == -1 || element == word[letterPos]);
+
+                    if ( element == -1 || element == word[letterPos]) {
+                        //that can be placed
+                      //  console.log("\ncurrent element:\n"+element);
+
+                        if (word[letterPos]) {
+                          //  console.log(" fitted:"+word[letterPos]+ "on:"+[row,col]);
+                            // element = word[letterPos];
+                            copyGrid.set(row,col,word[letterPos]);
+                            row += dr;
+                            col += dc;
+                            letterPos += 1;
+                        } else {
+                            break;
+                        }
+
+                    } else {
+                        return;
+                    }
+                }
+
+                //end of copy
+                //at the end of matching or boundary condition
+                if (word[letterPos]) {
+                    return;
+                } else {
+                    return copyGrid;
+                }
+
+            }
+        }
+
+        //end of crosswordGame
+
+        //initialization section
+
+        // var vocabulary = ["ruby", "blocks", "heredocs", "classes", "iterator", "module", "objects", "flexible", "each", "happy", "mutable", "lambda", "hash", "array"];
+
+        // “mazes,” “word,” “search,” “puzzle,” “games,” and “program,” and a 7x7 grid, our puzzle might look something like this:
+        var vocabulary = ["mazes","word","puzzle","games","and","program"];
+        var directions = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+            [1, 1],
+            [1, -1],
+            [-1, -1],
+            [-1, 1]
+        ];
+
+        // var vocabulary = ["one","two","three"];
+        // var directions = [[0,-1]]
+        var rows = 10;
+        var columns = 10;
+
+        var game = new crossWordsGame(vocabulary, rows, columns, directions);
+        game.generateGrid();
+        // end of initialization
+        // ============================================================
+    </script>
+</body>
